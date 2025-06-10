@@ -1,0 +1,15 @@
+[project]
+name = "jsgenerator"
+version = "1.0.0"
+description = "A project for generating npm package use case examples."
+authors = [
+    {name = "Leonardo Mieschendahl", email = "miesschendahl.leonardo@gmail.com"}
+]
+dependencies = [
+    'requests >=2.32.3, <3.0.0',
+    'PromptGPT @ git+https://github.com/Mieschendahl/PromptGPT.git'
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
