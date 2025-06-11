@@ -5,7 +5,7 @@ from typing import Optional, TextIO
 from promptgpt import Prompter, GPT
 from jsgenerator.utils import get_url, get_readme, create_dir, parse_examples, run_shell, filter_examples
 
-def generate_examples(package_name: str, use_llm: bool = False, work_path: str | Path = "__jsgenerator__", model_name: str = "gpt-4o-mini", log_file: Optional[TextIO] = sys.stdout, allow_injections: bool = True, no_const: bool = True) -> None:
+def generate_examples(package_name: str, use_llm: bool = False, work_path: str | Path = "__jsgenerator__", model_name: str = "gpt-4o-mini", log_file: Optional[TextIO] = sys.stdout, allow_injections: bool = False, no_const: bool = False) -> None:
     github_url = get_url(package_name)
     if github_url is None:
         return None
@@ -24,11 +24,11 @@ def generate_examples(package_name: str, use_llm: bool = False, work_path: str |
     base_path = work_path/ "examples" / package_name / use_llm_str
     create_dir(base_path, remove=True)
     
-    pattern = r"```(?:\w+)?\n(.*?)```"
-    code_blocks = re.findall(pattern, readme, flags=re.DOTALL)
-    examples = [match.strip() for match in code_blocks]
-    
-    if use_llm:        
+    if not use_llm: 
+        pattern = r"```(?:\w+)?\n(.*?)```"
+        code_blocks = re.findall(pattern, readme, flags=re.DOTALL)
+        examples = [match.strip() for match in code_blocks]
+    else:
         model = GPT()\
             .set_cache(f"__promptgpt__/{model_name}")\
             .configure(model=model_name, temperature=0)
@@ -50,11 +50,9 @@ def generate_examples(package_name: str, use_llm: bool = False, work_path: str |
                 f"\nHere is the readme of the package:\n\n{readme}"
             )\
             .get_response()
-    
-        examples.extend(parse_examples(response))
+        examples = parse_examples(response)
 
     examples = filter_examples(examples, template_path, project_path)[0]
-
     for i, example in enumerate(examples):
         if no_const:
             example = re.sub(r'\bconst\b', 'var', example)

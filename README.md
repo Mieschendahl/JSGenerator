@@ -1,15 +1,15 @@
 # JSGenerator
 
-*JSGenerator* is a Python library for generating npm package use case examples.
+*JSGenerator* is a Python library for generating NPM package use case examples.
 
 ```python
 from jsgenerator import generate_examples
 
-# Generates examples for npm package "abs" under "./output/examples/abs/llm"
-generate_examples("abs", use_llm=True, model_name="gpt-4o-mini", work_path="output")
+# Generates examples for npm package "abs" under "./jsgenerator/examples/abs/llm"
+generate_examples("abs", use_llm=True, model_name="gpt-4o-mini", work_path="jsgenerator")
 ```
 
-*JSGenerator* is based on [*PromptGPT*](https://github.com/Mieschendahl/PromptGPT).
+*JSGenerator* is based on the LLM prompting library [*PromptGPT*](https://github.com/Mieschendahl/PromptGPT).
 
 ## Setup
 
@@ -26,3 +26,4 @@ generate_examples("abs", use_llm=True, model_name="gpt-4o-mini", work_path="outp
     ```bash
     export OPENAI_API_KEY=<your_api_key>
     ```
+
