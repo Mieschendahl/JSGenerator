@@ -1,6 +1,7 @@
 __pycache__/
 __jsgenerator__/
 __promptgpt__/
+output/
 dist/
 build/
 .venv
