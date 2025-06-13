@@ -1,89 +1,92 @@
 import re
 import shutil
 import subprocess
-import requests
+import json
 from typing import Optional
 from urllib.parse import urlparse
 from pathlib import Path
-from promptgpt import utils, prebuilt
+from promptgpt import utils
 
-def get_url(package_name: str) -> Optional[str]:
-    """Fetches the GitHub repository URL for a given npm package.
+def get_url(package_name: str) -> str:
+    """
+    Retrieves the GitHub repository URL of a given npm package using the `npm view` command.
 
     Args:
         package_name (str): The name of the npm package.
 
     Returns:
-        Optional[str]: The GitHub repository URL if found, otherwise None.
+        Optional[str]: The repository URL if found, otherwise None.
     """
-    registry_url = f"https://registry.npmjs.org/{package_name}"
 
-    try:
-        response = requests.get(registry_url, timeout=10)
-        response.raise_for_status()
-        package_data = response.json()
+    # Run the npm view command with JSON output
+    result = run_shell(f"npm view {package_name} repository --json", check=True)
 
-        # 'repository' can be a dict or a string
-        repository_info = package_data.get("repository")
+    # Parse the JSON result
+    repo_data = json.loads(result)
 
-        if isinstance(repository_info, dict):
-            url = repository_info.get("url")
-        elif isinstance(repository_info, str):
-            url = repository_info
-        else:
-            return None
+    # Extract the URL from the repository field
+    url = None
+    if isinstance(repo_data, dict):
+        url = repo_data.get("url")
+    elif isinstance(repo_data, str):
+        url = repo_data
 
-        if url and "github.com" in url:
-            # Normalize the URL by stripping prefixes like git+
-            url = url.replace("git+", "").replace(".git", "").strip()
-            return url
+    assert url is not None
+    assert "github.com" in url
+    
+    return "https://github.com" + url.split("github.com", 1)[-1].split(".git")[0]
 
-    except (requests.RequestException, ValueError, KeyError):
-        pass
-
-    return None
-
-def get_readme(github_url: str) -> Optional[str]:
-    """Downloads the README file from a GitHub repository.
+def clone_repository(github_url: str, clone_path: Path) -> None:
+    """
+    Clones a GitHub repository to a specified local directory using 'git clone'.
 
     Args:
-        github_url (str): The URL of the GitHub repository.
+        github_url: The URL of the GitHub repository to be cloned (e.g., 'https://github.com/user/repo.git').
+        clone_path: The local directory where the repository should be cloned.
+    """
+    create_dir(clone_path)
+    run_shell(f"git clone --depth 1 {github_url} {clone_path}", check=True)
+    
+def get_file(repository_path: Path, file_path: Path) -> str:
+    path = repository_path / file_path
+    
+    assert path.is_file()
+    
+    return path.read_text()
+
+def get_readme(repository_path: Path) -> str:
+    """Gets the readme file content of a github repository.
+
+    Args:
+        repository_path: The path to the repository.
 
     Returns:
-        Optional[str]: The content of the README file if found, otherwise None.
-    
-    Raises:
-        ValueError: If the GitHub URL is invalid or if the GitHub API cannot be accessed.
+        str: The content of the README file if found, otherwise None.
     """
     readme_names = [
         'README.md', 'README.rst', 'README.txt', 'README',
         'readme.md', 'readme.rst', 'readme.txt', 'readme'
     ]
-
-    # Parse the GitHub URL
-    parsed_url = urlparse(github_url)
-    path_parts = parsed_url.path.strip('/').split('/')
-
-    if len(path_parts) < 2:
-        raise ValueError("Invalid GitHub URL. Expected format: 'https://github.com/owner/repo'")
-
-    owner, repo = path_parts[0], path_parts[1]
-
-    # Step 1: Get default branch using GitHub API
-    api_url = f'https://api.github.com/repos/{owner}/{repo}'
-    api_resp = requests.get(api_url)
-    if api_resp.status_code != 200:
-        raise ValueError(f"Could not access GitHub API: {api_resp.status_code}")
-
-    default_branch = api_resp.json().get('default_branch', 'main')
-
-    # Step 2: Try to download each possible README file
     for name in readme_names:
-        raw_url = f'https://raw.githubusercontent.com/{owner}/{repo}/{default_branch}/{name}'
-        resp = requests.get(raw_url)
-        if resp.status_code == 200:
-            return resp.text
-    return None
+        try:
+            return get_file(repository_path, Path(name))
+        except:
+            pass
+    assert False
+
+def get_main(repository_path: Path) -> str:
+    """Gets the main file content of a github repository.
+
+    Args:
+        repository_path: The path to the repository.
+
+    Returns:
+        str: The content of the main file if found, otherwise None.
+    """
+    package = get_file(repository_path, Path("package.json"))
+    package_json = json.loads(package)
+    main_file = package_json.get('main', 'index.js')
+    return get_file(repository_path, Path(main_file))
 
 def print_examples(examples: list[str]) -> None:
     """Prints a list of examples.
